@@ -133,7 +133,7 @@ void setup() {
 	}
 
 	//print out csv headers
-	Serial.print("time,altitude,pressure,bnoMagX,bnoMagY,bnoMagZ,gyroX,gyroY,gyroZ,accelX,accelY,accelZ,eulerX,eulerY,eulerZ,gravX,gravY,gravZ,linearX,linearY,linearZ,custMagX,custMagY,custMagZ,expensiveMag,bnoTemp,bmpTemp,bnoCalib");
+	Serial.print("time,altitude,pressure,bnoMagX,bnoMagY,bnoMagZ,gyroX,gyroY,gyroZ,accelX,accelY,accelZ,eulerX,eulerY,eulerZ,gravX,gravY,gravZ,linearX,linearY,linearZ,custMagX,custMagY,custMagZ,expensiveMag,bnoTemp,bmpTemp,bnoCalib\n");
 
 	//clear lcd buffer
 	lcd.clear();
@@ -235,7 +235,7 @@ void loop() {
 	command += altTemp;
 	command += ",";
 	command += latestCalib;
+	command += "\n";
 
 	Serial.println(command);
-
 }
