@@ -14,12 +14,16 @@ Author:	david
 Adafruit_BNO055 _bnoSensor;
 Adafruit_BMP085_Unified _bmpSensor;
 
+//BMP Pressure sensor variables
 auto seaLevelPressure = 1014.8500326800001;
 auto pressure = 0.0f;
 auto altitude = 0;
+
+//temp sensor variables
 float altTemp = 0.0f;
 float bnoTemp = 0.0f;
 
+//bno calib variables
 uint8_t calib_acc = 0;
 uint8_t calib_sys = 0;
 uint8_t calib_mag = 0;
@@ -39,50 +43,75 @@ auto expensiveMagTxPin = 11;
 SoftwareSerial expensiveMagSerial(expensiveMagRxPin, expensiveMagTxPin);
 
 //bno calibration string
-String latestCalib = "S0M0A0G0";
+String latestCalib = "S:0 M:0 A:0 G:0";
 
 //init LCD
-//Adafruit_LiquidCrystal lcd(0); // <----------------------------
+Adafruit_LiquidCrystal lcd(0); 
 
 char buffer[50];
 String fileName = "";
 
 void setup() {
+
+	//initialize serial lines
 	Serial.begin(57600);
 	expensiveMagSerial.begin(57600);
 	
-	//lcd.display();  // <----------------------------
-	//lcd.print("Initializing sensors..."); // <----------------------------
-	//Serial.println("Initializing sensors...");
+	//initialize lcd, print title
+	lcd.begin(16,2);
+	lcd.print("Payload McPayload Face!"); 
+	
+	//scroll title off-screen
+	for (int i = 0; i < 23; i++)	{
+		lcd.scrollDisplayLeft();
+		delay(150);
+	}
+	lcd.clear();
+
+	//start up the BNO055 breakout
 	if (!_bnoSensor.begin())
 	{
-		//lcd.print("No BNO detected..."); // <----------------------------
+		lcd.print("No BNO detected..."); 
 		while (1); //performs if check again.
 	}
+
 	//start up the BMP180..
 	if (!_bmpSensor.begin())
 	{
-		//lcd.print("No BMP detected..."); // <----------------------------
+		lcd.print("No BMP detected..."); 
 		while (1); //performs if check again.
 	}
 	delay(1000);
 	_bnoSensor.setExtCrystalUse(true);
 	
+	//generate new random seed based on A0 pin noise
 	randomSeed(analogRead(randomAnalogPin));
 	
+	//generate fileName
 	auto fileNum = random(999);
 	fileName = "data";
 	fileName += fileNum;
 	fileName += ".csv";
 
+	//send command to OpenLog to create file
 	String command = "new " + fileName;
 	command += " ";
 	Serial.print(command);
 
+	//display data file to lcd
+	lcd.clear();
+	String output = "Data file: " + fileName;
+	lcd.print(output);
+
+	//send command to append csv headers to new data file
 	command = "append " + fileName;
 	command += " ";
 	command += "time,altitude,pressure,bnoMagX,bnoMagY,bnoMagZ,gyroX,gyroY,gyroZ,accelX,accelY,accelZ,eulerX,eulerY,eulerZ,gravX,gravY,gravZ,linearX,linearY,linearZ,custMagX,custMagY,custMagZ,expensiveMag,bnoTemp,bmpTemp,bnoCalib";
 	Serial.print(command);
+	delay(1000);
+
+	//clear lcd buffer
+	lcd.clear();
 }
 
 
@@ -120,7 +149,7 @@ void loop() {
 	latestCalib += " G:";
 	latestCalib += calib_gyr;
 
-	//if(oldCalib != latestCalib) lcd.print(latestCalib);
+	if(oldCalib != latestCalib) lcd.print(latestCalib);
 
 	//read serial data from expensive mag
 	auto customMagX = analogRead(customMagXPin);
