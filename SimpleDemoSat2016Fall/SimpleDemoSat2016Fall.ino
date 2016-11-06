@@ -30,14 +30,11 @@ uint8_t calib_mag = 0;
 uint8_t calib_gyr = 0;
 
 //EDIT THESE FOR FINAL PIN PLACEMENT
-auto customMagXPin = A1;
-auto customMagYPin = A2;
-auto customMagZPin = A3;
-//RANDOM GENERATOR NOISE PIN - MUST BE LOW.
-auto randomAnalogPin = A0;
-
+auto customMagPin = A1;
+auto unusedAnalogPin = A0;
 auto expensiveMagRxPin = 10;
 auto expensiveMagTxPin = 11;
+auto openLogResetPin = 8;
 
 //software serial used for expensive magnetometer
 SoftwareSerial expensiveMagSerial(expensiveMagRxPin, expensiveMagTxPin);
@@ -84,8 +81,30 @@ void setup() {
 	delay(1000);
 	_bnoSensor.setExtCrystalUse(true);
 	
+	//reset OpenLog
+	digitalWrite(openLogResetPin, LOW);
+	delay(100);
+	digitalWrite(openLogResetPin, HIGH);
+
+	//wait for OpenLog to respond with '<' to indicate it is alive and recording to a file
+	while (1) {
+		if (Serial.available())
+			if (Serial.read() == '<') break;
+	}
+
+	//enter command mode on OpenLog
+	Serial.write(26);
+	Serial.write(26);
+	Serial.write(26);
+
+	//wait for OpenLog to respond with '>' to indicate we are in command mode
+	while (1) {
+		if (Serial.available())
+			if (Serial.read() == '>') break;
+	}
+
 	//generate new random seed based on A0 pin noise
-	randomSeed(analogRead(randomAnalogPin));
+	randomSeed(analogRead(unusedAnalogPin));
 	
 	//generate fileName
 	auto fileNum = random(999);
@@ -103,18 +122,22 @@ void setup() {
 	String output = "Data file: " + fileName;
 	lcd.print(output);
 
-	//send command to append csv headers to new data file
+	//send command to enter append mode in our new file
 	command = "append " + fileName;
-	command += " ";
-	command += "time,altitude,pressure,bnoMagX,bnoMagY,bnoMagZ,gyroX,gyroY,gyroZ,accelX,accelY,accelZ,eulerX,eulerY,eulerZ,gravX,gravY,gravZ,linearX,linearY,linearZ,custMagX,custMagY,custMagZ,expensiveMag,bnoTemp,bmpTemp,bnoCalib";
 	Serial.print(command);
-	delay(1000);
+
+	//wait for Openlog to indicate file is open and ready for writing
+	while (1) {
+		if (Serial.available())
+			if (Serial.read() == '<') break;
+	}
+
+	//print out csv headers
+	Serial.print("time,altitude,pressure,bnoMagX,bnoMagY,bnoMagZ,gyroX,gyroY,gyroZ,accelX,accelY,accelZ,eulerX,eulerY,eulerZ,gravX,gravY,gravZ,linearX,linearY,linearZ,custMagX,custMagY,custMagZ,expensiveMag,bnoTemp,bmpTemp,bnoCalib");
 
 	//clear lcd buffer
 	lcd.clear();
 }
-
-
 
 // the loop function runs over and over again until power down or reset
 void loop() {
@@ -152,20 +175,21 @@ void loop() {
 	if(oldCalib != latestCalib) lcd.print(latestCalib);
 
 	//read serial data from expensive mag
-	auto customMagX = analogRead(customMagXPin);
-	auto customMagY = analogRead(customMagYPin);
-	auto customMagZ = analogRead(customMagZPin);
+	auto customMagData = analogRead(customMagPin);
 
 	//read analog data from custom mag (3 analog pins)
 	auto expensiveMagData = expensiveMagSerial.read();
 	
 	//create log string
-	String command = "append " + fileName;
-	command += " ";
+	//String command = "append " + fileName;
+	//command += " ";
+	String command = "";
 	command += millis();
+	command += ",";
 	command += altitude;
 	command += ",";
 	command += pressure;
+	command += ",";
 	command += magVec.x();
 	command += ",";
 	command += magVec.y();
@@ -202,11 +226,7 @@ void loop() {
 	command += ",";
 	command += linearVec.z();
 	command += ",";
-	command += customMagX;
-	command += ",";
-	command += customMagY;
-	command += ",";
-	command += customMagZ;
+	command += customMagData;
 	command += ",";
 	command += expensiveMagData;
 	command += ",";
@@ -216,7 +236,6 @@ void loop() {
 	command += ",";
 	command += latestCalib;
 
-	//Serial.println(analogRead(A0));
 	Serial.println(command);
 
 }
