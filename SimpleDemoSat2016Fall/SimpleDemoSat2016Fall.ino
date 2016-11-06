@@ -1,7 +1,7 @@
 /*
-Name:		Sketch1.ino
+Name:		SimpleDemoSat2016Fall
 Created:	11/4/2016 10:14:15 PM
-Author:	david
+Author:	DemoSat Software Team - Arapahoe Community College
 */
 
 // the setup function runs once when you press reset or power the board
@@ -45,7 +45,6 @@ String latestCalib = "S:0 M:0 A:0 G:0";
 //init LCD
 Adafruit_LiquidCrystal lcd(0); 
 
-char buffer[50];
 String fileName = "";
 
 void setup() {
@@ -65,17 +64,15 @@ void setup() {
 	}
 	lcd.clear();
 
-	//start up the BNO055 breakout
-	if (!_bnoSensor.begin())
-	{
-		lcd.print("No BNO detected..."); 
+	//start up the BMP180..
+	if (!_bmpSensor.begin()) {
+		lcd.print("No BMP detected...");
 		while (1); //performs if check again.
 	}
 
-	//start up the BMP180..
-	if (!_bmpSensor.begin())
-	{
-		lcd.print("No BMP detected..."); 
+	//start up the BNO055 breakout
+	if (!_bnoSensor.begin()) 	{
+		lcd.print("No BNO detected..."); 
 		while (1); //performs if check again.
 	}
 	delay(1000);
@@ -133,7 +130,7 @@ void setup() {
 	}
 
 	//print out csv headers
-	Serial.print("time,altitude,pressure,bnoMagX,bnoMagY,bnoMagZ,gyroX,gyroY,gyroZ,accelX,accelY,accelZ,eulerX,eulerY,eulerZ,gravX,gravY,gravZ,linearX,linearY,linearZ,custMagX,custMagY,custMagZ,expensiveMag,bnoTemp,bmpTemp,bnoCalib\n");
+	Serial.print("time,altitude,pressure,bnoMagX,bnoMagY,bnoMagZ,gyroX,gyroY,gyroZ,accelX,accelY,accelZ,eulerX,eulerY,eulerZ,gravX,gravY,gravZ,linearX,linearY,linearZ,custMag,expensiveMag,bnoTemp,bmpTemp,bnoCalib\n");
 
 	//clear lcd buffer
 	lcd.clear();
@@ -158,9 +155,10 @@ void loop() {
 	bnoTemp = _bnoSensor.getTemp();
 	_bmpSensor.getTemperature(&altTemp);
 
-	//get current calibration 
+	//store latest BNO055 calibration 
 	auto oldCalib = latestCalib;
 
+	//update BNO055 calibration
 	_bnoSensor.getCalibration(&calib_sys, &calib_gyr, &calib_acc, &calib_mag);
 
 	latestCalib = "S:";
@@ -172,7 +170,11 @@ void loop() {
 	latestCalib += " G:";
 	latestCalib += calib_gyr;
 
-	if(oldCalib != latestCalib) lcd.print(latestCalib);
+	//If calibration changed, update lcd panel
+	if (oldCalib != latestCalib) {
+		lcd.clear();
+		lcd.print(latestCalib);
+	}
 
 	//read serial data from expensive mag
 	auto customMagData = analogRead(customMagPin);
@@ -180,9 +182,7 @@ void loop() {
 	//read analog data from custom mag (3 analog pins)
 	auto expensiveMagData = expensiveMagSerial.read();
 	
-	//create log string
-	//String command = "append " + fileName;
-	//command += " ";
+	//create log string, append all data... notice the order matches the headers we created at the end of setup()
 	String command = "";
 	command += millis();
 	command += ",";
